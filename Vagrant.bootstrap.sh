@@ -6,6 +6,17 @@ echo "-------------------------------------------------------------------------"
 
 #Aprovisionamiento de software
 
+# Verifico si ya se ha ejecutado el script
+if [ ! -f /var/vagrant_bootstrap_completed ]; then
+    echo "Running Vagrant bootstrap script..."
+    # Ejecutar el script
+    touch /var/vagrant_bootstrap_completed
+  else
+      echo "Saliendo del script."
+      #  exit 0
+    fi
+fi
+
 #Actualizo los paquetes disponibles de la VM
 sudo apt-get update -y
 
@@ -100,21 +111,21 @@ echo "-----------------------------> VERIFICANDO $DOCKER_PATH"
 if [ -d "$DOCKER_PATH" ]; then
     echo "-----------------------------> VERIFICANDO docker-compose.yml"
     if [ -f "$DOCKER_PATH/docker-compose.yml" ]; then
-        echo "El archivo docker-compose.yml existe."
-        cp $APP_PATH/app.py $DOCKER_PATH
+        echo "Archivo docker-compose.yml encontrado!"
+        #cp $APP_PATH/app.py $DOCKER_PATH
         cd $DOCKER_PATH
         echo "-----------------------------> DESTRUYENDO CONTENEDORES"
         sudo docker-compose down
         # Verificar que docker-compose down haya terminado correctamente
         if [ $? -eq 0 ]; then
-            echo "docker-compose down ha terminado correctamente. Iniciando docker-compose up -d --build..."
-
-            # Recreando contenedores.
-            echo "-----------------------------> RECREANDO CONTENEDORES"
-            docker-compose up -d --build
+            echo "docker-compose down ha terminado correctamente. Iniciando docker-compose up -d --build..."            
         else
             echo "ERROR: docker-compose down -v ha fallado. No se puede continuar."
-        fi        
+        fi
+        # Recreando contenedores.
+        echo "-----------------------------> RECREANDO CONTENEDORES"
+        docker-compose up -d --build
+                
     else
         echo "El archivo docker-compose.yml no existe."
     fi
