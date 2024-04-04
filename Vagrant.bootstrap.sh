@@ -11,13 +11,24 @@ if [ ! -f /var/vagrant_bootstrap_completed ]; then
     echo "Running Vagrant bootstrap script..."
     # Ejecutar el script
     touch /var/vagrant_bootstrap_completed
-  else
-      echo "Saliendo del script."
-      #  exit 0
-    fi
+else
+    echo "Saliendo del script."
+    #  exit 0
+fi
+
+# Verifico si python3-pip esta instalado
+echo "-----------------------------> VERIFICANDO si python3-pip esta instalado"
+if dpkg -s python3-pip &> /dev/null; then
+    # Uninstall python3-pip
+    echo "desinstalando python3-pip..."
+    sudo apt-get remove python3-pip -y
+    echo "python3-pip se ha desintalado."
+else
+    echo "python3-pip no está instalado."
 fi
 
 #Actualizo los paquetes disponibles de la VM
+echo "-----------------------------> ACTUALIZANDO apt-get update -y"
 sudo apt-get update -y
 
 # Directorio para los archivos de la base de datos MySQL. El servidor de la base de datos
@@ -46,18 +57,28 @@ if [ ! -f "/swapdir/swapfile" ]; then
 	echo vm.swappiness = 10 | sudo tee -a /etc/sysctl.conf
 fi
 
-################################################################## CAMBIAR ESTO
+##################################################################
+##################################################################
+################################################################## 
 # Configuración applicación
 # ruta de la aplicación
+
+# root path
 APP_ROOT="/opt/app"
+# ruta de la aplicación
+APP_PATH="$APP_ROOT/utn-devops-app"
+# ruta al directorio docker
+DOCKER_PATH="$APP_PATH/docker"
+# git app repository
+GIT_APP_REPO="https://github.com/cesarlopez82/utn-devops-app.git"
+
+# Verifico que exista el root path para la app
 echo "-----------------------------> VERIFICANDO $APP_ROOT"
 if [  -d  $APP_ROOT ]; then
     echo "-----------------------------> Creando dir $APP_ROOT"
 	sudo mkdir -p $APP_ROOT
 fi
 
-# ruta de la aplicación
-APP_PATH="$APP_ROOT/utn-devops-app"
 # Verificar si el repositorio ya ha sido clonado
 echo "-----------------------------> VERIFICANDO $APP_PATH/.git"
 if [ -d "$APP_PATH/.git" ]; then
@@ -70,13 +91,12 @@ else
     # Si el directorio .git no existe, clonar el repositorio
     echo "-----------------------------> CLONANDO!"
     echo "Clonando el repositorio..."
-    sudo git clone https://github.com/cesarlopez82/utn-devops-app.git $APP_PATH
+    sudo git clone $GIT_APP_REPO $APP_PATH
 fi
 
 cd $APP_PATH
 
 ##################################################################
-
 ######## Instalacion de DOCKER ########
 #
 # Esta instalación de docker es para demostrar el aprovisionamiento
@@ -86,9 +106,12 @@ cd $APP_PATH
 # software Docker este ejemplo es suficiente, para un uso más avanzado de Vagrant
 # se puede consultar la documentación oficial en https://www.vagrantup.com
 #
-for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
-if [ ! -x "$(command -v docker)" ]; then
-	sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common gnupg
+
+echo "-----------------------------> VERIFICANDO Instalacion de docker"
+if ! command -v docker &> /dev/null; then
+    echo "Docker is not installed."
+    echo "-----------------------------> INSTALANDO docker"
+    sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common gnupg
 
 	##Configuramos el repositorio
 	curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
@@ -102,11 +125,15 @@ if [ ! -x "$(command -v docker)" ]; then
 	sudo apt-get -y  install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-compose
 	
 	#Lo configuro para que inicie en el arranque
-	sudo systemctl enable docker
+	sudo systemctl enable docker    
+else
+    echo "Docker is installed."
+    # Obtener la versión de Docker
+    docker_version=$(docker --version | awk '{print $3}')
+    echo "-----------------------------> Docker version: $docker_version"
 fi
 
-# ruta al directorio docker
-DOCKER_PATH="$APP_PATH/docker"
+
 echo "-----------------------------> VERIFICANDO $DOCKER_PATH"
 if [ -d "$DOCKER_PATH" ]; then
     echo "-----------------------------> VERIFICANDO docker-compose.yml"
@@ -127,8 +154,10 @@ if [ -d "$DOCKER_PATH" ]; then
         docker-compose up -d --build
                 
     else
-        echo "El archivo docker-compose.yml no existe."
+        echo "WARNING: El archivo docker-compose.yml no existe."
     fi
+else
+    echo "WARNING: No existe el directorio $DOCKER_PATH"
 fi
 
 
